@@ -501,6 +501,8 @@ module_param_named(
 			pr_debug_ratelimited(fmt, ##__VA_ARGS__);	\
 	} while (0)
 
+static int version_flag;
+
 static int smbchg_read(struct smbchg_chip *chip, u8 *val,
 			u16 addr, int count)
 {
@@ -6091,7 +6093,6 @@ static int smbchg_get_iusb(struct smbchg_chip *chip)
 	return iusb_ua;
 }
 
-static int version_flag;
 void get_version_change_current(struct smbchg_chip *chip)
 {
 	char *boardid_string = NULL;
