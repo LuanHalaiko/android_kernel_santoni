@@ -65,6 +65,8 @@ include/config
 include/generated
 arch/*/include/generated
 
+repack_zip/clarity/zImage
+
 # stgit generated dirs
 patches-*
 
