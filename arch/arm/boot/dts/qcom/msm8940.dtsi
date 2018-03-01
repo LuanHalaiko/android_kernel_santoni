@@ -265,6 +265,9 @@
 };
 
 &mdss_mdp {
+	/delete-property/ qcom,mdss-rot-downscale-min;
+	/delete-property/ qcom,mdss-rot-downscale-max;
+
 	qcom,vbif-settings = <0x0d0 0x00000020>;
 };
 
