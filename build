@@ -5,8 +5,8 @@ SUB=$2
 
 rm -f repack_zip/clarity/zImage
 
-if [ -d repack_zip/system ]; then
-	rm -rf repack_zip/system
+if [ -d repack_zip/system/lib ]; then
+	rm -rf repack_zip/system/lib
 fi
 
 mv arch/arm64/boot/Image.gz-dtb repack_zip/clarity/zImage
