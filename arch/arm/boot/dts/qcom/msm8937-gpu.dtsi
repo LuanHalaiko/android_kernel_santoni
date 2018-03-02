@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -23,7 +23,7 @@
 		/*
 		 * active-only flag is used while registering the bus
 		 * governor.It helps release the bus vote when the CPU
-		 * subsystem is inactive
+		 * subsystem is inactiv3
 		 */
 		qcom,active-only;
 		qcom,bw-tbl =
@@ -37,7 +37,11 @@
 			< 5346 >, /* 7. DDR:662.40 MHz BIMC: 331.20 MHz */
 			< 5712 >, /* 8. DDR:748.80 MHz BIMC: 374.40 MHz */
 			< 6152 >, /* 9. DDR:806.40 MHz BIMC: 403.20 MHz */
-			< 7031 >; /* 10. DDR:921.60 MHz BIMC: 460.80 MHz */
+			< 7031 >, /* 10. DDR:921.60 MHz BIMC: 460.80 MHz */
+			< 7759 >, /* 11. DDR:1017.00 MHz BIMC: 508.50 MHz */
+			< 9887 >, /* 12. DDR:1296.00 MHz BIMC: 648.00 MHz */
+			< 11863 >, /* 13. DDR:1555.00 MHz BIMC: 777.50 MHz */
+			< 13763 >; /* 14. DDR:1804.00 MHz BIMC: 902.00 MHz */
 	};
 
 	msm_gpu: qcom,kgsl-3d0@1c00000 {
@@ -76,9 +80,9 @@
 		/* Bus Scale Settings */
 		qcom,gpubw-dev = <&gpubw>;
 		qcom,bus-control;
-		qcom,bus-width = <16>;
+		qcom,bus-width = <32>;
 		qcom,msm-bus,name = "grp3d";
-		qcom,msm-bus,num-cases = <11>;
+		qcom,msm-bus,num-cases = <15>;
 		qcom,msm-bus,num-paths = <1>;
 		qcom,msm-bus,vectors-KBps =
 				<26 512 0 0>,	    /*    off        */
@@ -91,7 +95,11 @@
 				<26 512 0 5299200>, /* 7. 662.40 MHz */
 				<26 512 0 5990400>, /* 8. 748.80 MHz */
 				<26 512 0 6451200>, /* 9. 806.40 MHz */
-				<26 512 0 7372800>; /* 10. 921.60 MHz */
+				<26 512 0 7372800>, /* 10. 921.60 MHz */
+				<26 512 0 8136000>, /* 11. 1017.00 MHz */
+				<26 512 0 10368000>, /* 12. 1296.00 MHz */
+				<26 512 0 12440000>, /* 13. 1555.00 MHz */
+				<26 512 0 14432000>; /* 14. 1804.00 MHz */
 
 		/* GDSC regulator names */
 		regulator-names = "vddcx", "vdd";
