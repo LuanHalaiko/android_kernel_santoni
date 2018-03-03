@@ -1,4 +1,4 @@
-/* Copyright (c) 2010-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2010-2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -20,7 +20,6 @@
 #include <linux/ftrace.h>
 #include <linux/mm.h>
 #include <linux/msm_adreno_devfreq.h>
-#include <linux/display_state.h>
 #include <asm/cacheflush.h>
 #include <soc/qcom/scm.h>
 #include "governor.h"
@@ -68,10 +67,6 @@ static void do_partner_start_event(struct work_struct *work);
 static void do_partner_stop_event(struct work_struct *work);
 static void do_partner_suspend_event(struct work_struct *work);
 static void do_partner_resume_event(struct work_struct *work);
-
-/* Display and suspend state booleans */ 
-static bool display_on;
-static bool suspended = false;
 
 static struct workqueue_struct *workqueue;
 
@@ -239,7 +234,7 @@ static int tz_init_ca(struct devfreq_msm_adreno_tz_data *priv)
 {
 	unsigned int tz_ca_data[2];
 	struct scm_desc desc = {0};
-	u8 *tz_buf;
+	unsigned int *tz_buf;
 	int ret;
 
 	/* Set data for TZ */
@@ -284,7 +279,7 @@ static int tz_init(struct devfreq_msm_adreno_tz_data *priv,
 			scm_is_call_available(SCM_SVC_DCVS, TZ_UPDATE_ID_64) &&
 			scm_is_call_available(SCM_SVC_DCVS, TZ_RESET_ID_64)) {
 		struct scm_desc desc = {0};
-		u8 *tz_buf;
+		unsigned int *tz_buf;
 
 		if (!is_scm_armv8()) {
 			ret = scm_call(SCM_SVC_DCVS, TZ_INIT_ID_64,
@@ -361,16 +356,6 @@ static int tz_get_target_freq(struct devfreq *devfreq, unsigned long *freq,
 	}
 
 	*freq = stats.current_frequency;
-	
-	/*
-	 * Force to use & record as min freq when system has
-	 * entered pm-suspend or screen-off state.
-	 */
-	if (suspended || !display_on) {
-		*freq = devfreq->profile->freq_table[devfreq->profile->max_state - 1];
-		return 0;
-	}
-	
 	priv->bin.total_time += stats.total_time;
 	priv->bin.busy_time += stats.busy_time;
 
@@ -420,56 +405,6 @@ static int tz_get_target_freq(struct devfreq *devfreq, unsigned long *freq,
 	 * If the decision is to move to a different level, make sure the GPU
 	 * frequency changes.
 	 */
-#if 1
-	if (!adrenoboost && val) {
-		level += val;
-		level = max(level, 0);
-		level = min_t(int, level, devfreq->profile->max_state - 1);
-		printk("%s ADRENO jumping level = %d last_level = %d total=%d busy=%d original busy_time=%d \n", __func__, level, priv->bin.last_level, (int)priv->bin.total_time, (int)priv->bin.busy_time, (int)stats.busy_time);
-		priv->bin.last_level = level;
-		goto clear;
-	}
-
-	if (priv->bus.total_time < LONG_FLOOR)
-		goto end;
-	norm_cycles = (unsigned int)priv->bus.ram_time /
-			(unsigned int) priv->bus.total_time;
-	gpu_percent = (100 * (unsigned int)priv->bus.gpu_time) /
-			(unsigned int) priv->bus.total_time;
-	/*
-	 * If there's a new high watermark, update the cutoffs and send the
-	 * FAST hint.  Otherwise check the current value against the current
-	 * cutoffs.
-	 */
-	if (norm_cycles > priv->bus.max) {
-		_update_cutoff(priv, norm_cycles);
-		*flag = DEVFREQ_FLAG_FAST_HINT;
-	} else {
-		if (val) {
-			priv->bin.cycles_keeping_level += 1 + abs(val/2); // higher value change quantity means more addition to cycles_keeping_level for easier switching
-			// going upwards in frequency -- make it harder on the low and high freqs, middle ground - let it move
-			if (val<0 && priv->bin.cycles_keeping_level < conservation_map_up[ last_level ]) {
-				printk("%s ADRENO not jumping UP level = %d last_level = %d total=%d busy=%d original busy_time=%d \n", __func__, level, priv->bin.last_level, (int)priv->bin.total_time, (int)priv->bin.busy_time, (int)stats.busy_time);
-			} else
-			// going downwards in frequency let it happen hard in the middle freqs
-			if (val>0 && priv->bin.cycles_keeping_level < conservation_map_down[ last_level ])  {
-				printk("%s ADRENO not jumping DOWN level = %d last_level = %d total=%d busy=%d original busy_time=%d \n", __func__, level, priv->bin.last_level, (int)priv->bin.total_time, (int)priv->bin.busy_time, (int)stats.busy_time);
-			} else
-			{
-				level += val;
-				level = max(level, 0);
-				level = min_t(int, level, devfreq->profile->max_state - 1);
-				// reset keep cylcles timer
-				priv->bin.cycles_keeping_level = 0;
-				// set new last level
-				priv->bin.last_level = level;
-				printk("%s ADRENO jumping level = %d last_level = %d total=%d busy=%d original busy_time=%d \n", __func__, level, priv->bin.last_level, (int)priv->bin.total_time, (int)priv->bin.busy_time, (int)stats.busy_time);
-			}
-		}
-	}
-	priv->bin.total_time = 0;
-	priv->bin.busy_time = 0;
-#else
 	if (val) {
 		level += val;
 		level = max(level, 0);
@@ -585,8 +520,6 @@ static int tz_suspend(struct devfreq *devfreq)
 	struct devfreq_msm_adreno_tz_data *priv = devfreq->data;
 	unsigned int scm_data[2] = {0, 0};
 	__secure_tz_reset_entry2(scm_data, sizeof(scm_data), priv->is_64);
-	display_on = is_display_on();
-	suspended = true;
 
 	priv->bin.total_time = 0;
 	priv->bin.busy_time = 0;
@@ -632,8 +565,6 @@ static int tz_handler(struct devfreq *devfreq, unsigned int event, void *data)
 	case DEVFREQ_GOV_RESUME:
 		spin_lock(&suspend_lock);
 		suspend_time += suspend_time_ms();
-		display_on = is_display_on();
-		suspended = false;
 		/* Reset the suspend_start when gpu resumes */
 		suspend_start = 0;
 		spin_unlock(&suspend_lock);
